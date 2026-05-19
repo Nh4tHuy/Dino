@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dino Dash Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            background-color: #f8fafc;
+            touch-action: none; /* Prevent scroll on touch */
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .pixel-font { font-family: 'Press Start 2P', monospace; }
+        
+        /* Hiệu ứng mây trôi UI */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+
+        canvas {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen w-screen flex flex-col font-sans">
+
+    <!-- ================= MÀN HÌNH MENU CHÍNH ================= -->
+    <div id="screen-menu" class="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-slate-200 transition-opacity duration-300">
+        <div class="bg-white/80 backdrop-blur-xl border border-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center transform transition-all">
+            <div class="w-24 h-24 mx-auto mb-6 flex items-center justify-center animate-float">
+                <!-- SVG Dino Icon -->
+                <svg viewBox="0 0 24 24" fill="currentColor" class="w-20 h-20 text-slate-800">
+                    <path d="M11.9,1.4C11.9,1.4,11.9,1.4,11.9,1.4l0.1,0.2c0.1,0.2,0.1,0.5,0,0.8L11.5,3h2.6c0.6,0,1,0.4,1,1v1h2V4c0-0.6-0.4-1-1-1h-1 c0,0,0-0.1,0-0.1C15,2.4,14.6,2,14.1,2h-1.5c-0.3,0-0.6,0.1-0.8,0.3l-0.1,0.1C11.5,2.1,11.3,1.7,11.9,1.4z M17,5v1h1v1h-1v1h-1v1h-1 v1h-1v1h-1v1h-1v1h-1v1h-1v1H8v1H7v1H6v1H5v1H4v1H3v1H2v1H1v-1h1v-1h1v-1h1v-1h1v-1h1v-1h1V8h1V7h1V6h1V5H17z M14,7h-1v1h1V7z M9,18 h1v1h-1V18z M7,20h1v1H7V20z M11,18h1v1h-1V18z M13,20h1v1h-1V20z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl pixel-font text-slate-800 mb-2 leading-tight">DINO DASH</h1>
+            <p class="text-slate-500 mb-8 font-medium">Cuộc đua sinh tồn Online</p>
+
+            <div class="space-y-4">
+                <input type="text" id="player-name" placeholder="Nhập tên của bạn..." maxlength="12" class="w-full bg-slate-100 border border-slate-200 rounded-2xl px-4 py-4 text-center font-bold text-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+
+                <button onclick="createRoom()" class="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2" id="btn-create">
+                    <i class="fa-solid fa-plus"></i> Tạo Phòng Đua
+                </button>
+                
+                <div class="flex gap-2">
+                    <input type="text" id="join-code" placeholder="Mã phòng..." class="flex-1 bg-slate-100 border border-slate-200 rounded-2xl px-4 text-center font-mono uppercase text-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <button onclick="joinRoom()" class="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-md transition-all active:scale-95 flex items-center justify-center" id="btn-join">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="auth-status" class="mt-6 text-sm font-medium text-slate-500 bg-white/50 px-4 py-2 rounded-full backdrop-blur-md">
+            <i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Đang khởi tạo...
+        </div>
+    </div>
+
+    <!-- ================= MÀN HÌNH LOBBY CHỜ ================= -->
+    <div id="screen-lobby" class="absolute inset-0 z-40 flex flex-col items-center justify-center p-4 bg-slate-900 hidden transition-opacity duration-300">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-3xl shadow-2xl w-full max-w-md text-center text-white relative">
+            <button onclick="leaveRoom()" class="absolute top-4 left-4 text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left text-xl"></i></button>
+            
+            <h2 class="text-xl font-bold mb-6 text-blue-400">PHÒNG CHỜ</h2>
+            
+            <div class="bg-slate-900 p-4 rounded-2xl mb-8 border border-slate-700">
+                <p class="text-xs text-slate-400 uppercase tracking-widest mb-2">Mã chia sẻ</p>
+                <div class="flex items-center justify-center gap-4">
+                    <span id="lobby-code" class="text-4xl font-mono font-black text-white tracking-widest">---</span>
+                    <button onclick="copyCode()" class="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition"><i class="fa-regular fa-copy"></i></button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-700/50 p-4 rounded-2xl mb-4">
+                <div class="flex flex-col items-start">
+                    <span class="text-xs text-slate-400">Chủ phòng</span>
+                    <span id="lobby-host-name" class="font-bold text-lg">---</span>
+                </div>
+                <i class="fa-solid fa-crown text-amber-400 text-xl"></i>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-700/50 p-4 rounded-2xl mb-8">
+                <div class="flex flex-col items-start">
+                    <span class="text-xs text-slate-400">Đối thủ</span>
+                    <span id="lobby-peer-name" class="font-bold text-lg text-slate-300">Đang đợi...</span>
+                </div>
+                <div id="lobby-peer-status">
+                    <i class="fa-solid fa-spinner fa-spin text-slate-400 text-xl"></i>
+                </div>
+            </div>
+
+            <button onclick="startGameHost()" id="btn-start" disabled class="w-full py-4 bg-blue-600 disabled:bg-slate-600 disabled:text-slate-400 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95 text-lg">
+                BẮT ĐẦU ĐUA
+            </button>
+            <p id="msg-waiting-host" class="text-sm text-slate-400 mt-4 hidden">Chờ chủ phòng bắt đầu...</p>
+        </div>
+    </div>
+
+    <!-- ================= MÀN HÌNH GAME ================= -->
+    <div id="screen-game" class="absolute inset-0 z-30 flex flex-col hidden bg-[#f7f7f7]">
+        <!-- Top UI (Scores & Status) -->
+        <div class="h-20 w-full flex items-center justify-between px-4 sm:px-8 absolute top-0 left-0 z-10">
+            <!-- P1 (Me) -->
+            <div class="flex flex-col">
+                <span id="ui-my-name" class="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Tôi</span>
+                <span id="ui-my-score" class="pixel-font text-xl sm:text-2xl text-slate-800">00000</span>
+            </div>
+            
+            <!-- VS -->
+            <div id="ui-status-msg" class="pixel-font text-[10px] sm:text-xs text-amber-500 animate-pulse text-center">
+                CHỜ ĐỒNG BỘ
+            </div>
+
+            <!-- P2 (Opponent) -->
+            <div class="flex flex-col items-end">
+                <span id="ui-opp-name" class="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Đối thủ</span>
+                <div class="flex items-center gap-2">
+                    <span id="ui-opp-status" class="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded font-bold hidden">RUN</span>
+                    <span id="ui-opp-score" class="pixel-font text-xl sm:text-2xl text-slate-400">00000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="flex-1 w-full relative flex items-center justify-center cursor-pointer" id="canvas-container">
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Countdown Overlay -->
+            <div id="countdown-overlay" class="absolute inset-0 flex items-center justify-center hidden pointer-events-none">
+                <span id="countdown-text" class="pixel-font text-6xl text-slate-800 drop-shadow-lg">3</span>
+            </div>
+        </div>
+        
+        <!-- Controls Helper (Mobile) -->
+        <div class="h-16 w-full flex items-center justify-center text-slate-400 text-sm font-medium pb-4 pointer-events-none">
+            Chạm vào màn hình hoặc ấn Phím Space để Nhảy
+        </div>
+    </div>
+
+    <!-- MODAL THÔNG BÁO / KẾT QUẢ -->
+    <div id="modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300 p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center transform scale-95 transition-transform duration-300 border-4 border-slate-800" id="modal-content">
+            <h2 id="modal-title" class="pixel-font text-xl text-slate-800 mb-4 leading-tight mt-2">KẾT QUẢ</h2>
+            <div class="bg-slate-100 p-4 rounded-xl mb-6 text-left space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <span id="res-name-1" class="font-bold text-slate-600">Bạn</span>
+                    <span id="res-score-1" class="pixel-font text-sm text-slate-800">0000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span id="res-name-2" class="font-bold text-slate-600">Đối thủ</span>
+                    <span id="res-score-2" class="pixel-font text-sm text-slate-800">0000</span>
+                </div>
+            </div>
+            <p id="modal-desc" class="text-slate-600 mb-6 font-bold text-lg">Bạn đã thắng!</p>
+            
+            <div class="flex gap-3 justify-center">
+                <button onclick="leaveRoom()" class="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">Thoát</button>
+                <button id="btn-modal-ok" onclick="handleModalOk()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg transition">Chơi Lại</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed top-10 right-4 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-xl z-[150] transform transition-all duration-300 translate-y-[-20px] opacity-0 pointer-events-none text-sm font-medium flex items-center gap-2">
+        <i class="fa-solid fa-info-circle text-blue-400"></i>
+        <span id="toast-text">Thông báo</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        let app, auth, db, user;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'my-dino-game';
+
+        // --- FIREBASE INIT ---
+        const initFirebase = () => {
+            try {
+                let firebaseConfig = null;
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                } else {
+                    firebaseConfig = {
+                        apiKey: "AIzaSyBwSNpLu5liMKbkYtaA_YMRQxEup_BrLeQ",
+                        authDomain: "caro-online-3056e.firebaseapp.com",
+                        projectId: "caro-online-3056e",
+                        storageBucket: "caro-online-3056e.firebasestorage.app",
+                        messagingSenderId: "490204158312",
+                        appId: "1:490204158312:web:1cb84bb4184a2d22d81edd"
+                    };
+                }
+
+                if (!firebaseConfig || !firebaseConfig.apiKey) throw new Error("No Config");
+
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                const handleAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                handleAuth();
+
+                onAuthStateChanged(auth, (u) => {
+                    user = u;
+                    document.getElementById('auth-status').innerHTML = u ? `<i class="fa-solid fa-check text-green-500 mr-1"></i> Máy chủ sẵn sàng` : `<i class="fa-solid fa-xmark text-red-500 mr-1"></i> Lỗi đăng nhập`;
+                });
+            } catch (e) {
+                document.getElementById('auth-status').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i> Chỉ hỗ trợ Online. Vui lòng cấu hình Firebase.`;
+                db = null; 
+            }
+        };
+        initFirebase();
+
+        // --- GAME ENGINE & PHYSICS ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize
+        const container = document.getElementById('canvas-container');
+
+        // Định dạng đồ họa (Vẽ tay Pixel art)
+        const SPRITES = {
+            dino: [
+                [[1,1,1,1],[1,0,1,1],[1,1,1,1],[0,1,1,0],[0,1,0,1]], // Run 1
+                [[1,1,1,1],[1,0,1,1],[1,1,1,1],[0,1,1,0],[1,0,1,0]], // Run 2
+                [[1,1,1,1],[1,0,0,1],[1,1,1,1],[0,1,1,0],[1,0,0,1]]  // Dead
+            ],
+            cactus: [[0,1,0],[1,1,1],[1,1,1],[0,1,0]]
+        };
+
+        let ENGINE = {
+            isRunning: false,
+            lastTime: 0,
+            accumulator: 0,
+            timeStep: 1000 / 60, // Fixed 60fps for deterministic physics
+            
+            seed: 12345, // Will be synced from host
+            
+            // Tỷ lệ màn hình
+            baseWidth: 800,
+            baseHeight: 300,
+            scale: 1,
+
+            // Entities
+            dino: { x: 50, y: 0, w: 40, h: 44, vy: 0, isJumping: false, dead: false },
+            groundY: 250,
+            gravity: 0.6,
+            jumpForce: -11,
+            speed: 6,
+            baseSpeed: 6,
+            
+            obstacles: [],
+            nextSpawnDist: 0,
+            distanceTravelled: 0,
+            
+            score: 0,
+            frames: 0,
+
+            // Sync
+            lastSyncScore: 0
+        };
+
+        // Hàm random có hạt giống (PRNG Mulberry32)
+        function seededRandom() {
+            var t = ENGINE.seed += 0x6D2B79F5;
+            t = Math.imul(t ^ t >>> 15, t | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        }
+
+        function resizeCanvas() {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            canvas.width = w;
+            canvas.height = h;
+            ENGINE.scale = Math.min(w / ENGINE.baseWidth, h / ENGINE.baseHeight);
+            ENGINE.groundY = h * 0.7; // Mặt đất ở 70% màn hình
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawPixelRect(x, y, matrix, color, size = 4) {
+            ctx.fillStyle = color;
+            for(let r=0; r<matrix.length; r++) {
+                for(let c=0; c<matrix[r].length; c++) {
+                    if(matrix[r][c]) {
+                        ctx.fillRect(x + c*size, y + r*size, size, size);
+                    }
+                }
+            }
+        }
+
+        // --- GAME LOOP ---
+        function resetEngine() {
+            ENGINE.dino.y = ENGINE.groundY - ENGINE.dino.h;
+            ENGINE.dino.vy = 0;
+            ENGINE.dino.isJumping = false;
+            ENGINE.dino.dead = false;
+            ENGINE.obstacles = [];
+            ENGINE.distanceTravelled = 0;
+            ENGINE.nextSpawnDist = 400; // Khoảng cách ban đầu
+            ENGINE.score = 0;
+            ENGINE.speed = ENGINE.baseSpeed;
+            ENGINE.frames = 0;
+            ENGINE.lastSyncScore = 0;
+            resizeCanvas();
+        }
+
+        function spawnObstacle() {
+            const types = [
+                { w: 20, h: 40, color: '#16a34a' }, // Xương rồng đơn
+                { w: 40, h: 40, color: '#15803d' }, // Xương rồng đôi
+                { w: 30, h: 50, color: '#166534' }  // Xương rồng lớn
+            ];
+            const type = types[Math.floor(seededRandom() * types.length)];
+            
+            ENGINE.obstacles.push({
+                x: canvas.width + 50,
+                y: ENGINE.groundY - type.h,
+                w: type.w,
+                h: type.h,
+                color: type.color
+            });
+
+            // Khoảng cách spawn ngẫu nhiên nhưng Deterministic
+            const minGap = 250 + (ENGINE.speed * 10);
+            const maxGap = minGap + 300;
+            ENGINE.nextSpawnDist = ENGINE.distanceTravelled + minGap + (seededRandom() * (maxGap - minGap));
+        }
+
+        function updatePhysics() {
+            if (ENGINE.dino.dead) return;
+
+            // Tăng tốc độ theo thời gian
+            ENGINE.speed = ENGINE.baseSpeed + (ENGINE.score / 500);
+            if(ENGINE.speed > 15) ENGINE.speed = 15;
+
+            ENGINE.distanceTravelled += ENGINE.speed;
+            ENGINE.frames++;
+            
+            // Cập nhật điểm
+            if (ENGINE.frames % 5 === 0) {
+                ENGINE.score++;
+                document.getElementById('ui-my-score').innerText = String(ENGINE.score).padStart(5, '0');
+                
+                // Gửi điểm lên server mỗi 100 điểm để giảm tải
+                if (ENGINE.score - ENGINE.lastSyncScore >= 50) {
+                    syncStatusToServer(false);
+                    ENGINE.lastSyncScore = ENGINE.score;
+                }
+            }
+
+            // Dino Physics
+            ENGINE.dino.vy += ENGINE.gravity;
+            ENGINE.dino.y += ENGINE.dino.vy;
+
+            if (ENGINE.dino.y > ENGINE.groundY - ENGINE.dino.h) {
+                ENGINE.dino.y = ENGINE.groundY - ENGINE.dino.h;
+                ENGINE.dino.vy = 0;
+                ENGINE.dino.isJumping = false;
+            }
+
+            // Spawn Obstacles
+            if (ENGINE.distanceTravelled > ENGINE.nextSpawnDist) {
+                spawnObstacle();
+            }
+
+            // Move Obstacles & Check Collision
+            for (let i = 0; i < ENGINE.obstacles.length; i++) {
+                let obs = ENGINE.obstacles[i];
+                obs.x -= ENGINE.speed;
+
+                // AABB Collision (Thu nhỏ box một chút để dễ thở)
+                let hitBoxX = ENGINE.dino.x + 10;
+                let hitBoxY = ENGINE.dino.y + 10;
+                let hitBoxW = ENGINE.dino.w - 20;
+                let hitBoxH = ENGINE.dino.h - 15;
+
+                if (hitBoxX < obs.x + obs.w &&
+                    hitBoxX + hitBoxW > obs.x &&
+                    hitBoxY < obs.y + obs.h &&
+                    hitBoxY + hitBoxH > obs.y) {
+                    // CHẾT
+                    ENGINE.dino.dead = true;
+                    handleDeath();
+                }
+            }
+
+            // Remove off-screen obstacles
+            if (ENGINE.obstacles.length > 0 && ENGINE.obstacles[0].x < -100) {
+                ENGINE.obstacles.shift();
+            }
+        }
+
+        function draw() {
+            // Xóa nền
+            ctx.fillStyle = '#f7f7f7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Vẽ đường chân trời
+            ctx.strokeStyle = '#535353';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, ENGINE.groundY);
+            ctx.lineTo(canvas.width, ENGINE.groundY);
+            ctx.stroke();
+
+            // Ground noise (di chuyển)
+            ctx.fillStyle = '#535353';
+            const offset = -(ENGINE.distanceTravelled % 100);
+            for(let i=0; i<canvas.width/100 + 2; i++) {
+                ctx.fillRect(offset + i*100 + 20, ENGINE.groundY + 10, 3, 2);
+                ctx.fillRect(offset + i*100 + 70, ENGINE.groundY + 25, 4, 2);
+                ctx.fillRect(offset + i*100 + 40, ENGINE.groundY + 5, 2, 2);
+            }
+
+            // Vẽ chướng ngại vật
+            for (let obs of ENGINE.obstacles) {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                // Thêm chi tiết nhỏ cho xương rồng
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(obs.x + obs.w - 5, obs.y, 5, obs.h);
+            }
+
+            // Vẽ Dino
+            ctx.fillStyle = '#535353';
+            if (state.isHost) ctx.fillStyle = '#3b82f6'; // Xanh cho P1
+            else ctx.fillStyle = '#ef4444'; // Đỏ cho P2
+            
+            // Vẽ khối cơ bản thay vì ma trận để mượt hơn
+            ctx.fillRect(ENGINE.dino.x, ENGINE.dino.y, ENGINE.dino.w, ENGINE.dino.h);
+            
+            // Mắt
+            ctx.fillStyle = ENGINE.dino.dead ? 'red' : 'white';
+            ctx.fillRect(ENGINE.dino.x + 24, ENGINE.dino.y + 6, 6, 6);
+            if(!ENGINE.dino.dead) {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(ENGINE.dino.x + 26, ENGINE.dino.y + 8, 2, 2);
+            }
+            
+            // Chân (nếu đang chạy)
+            if(!ENGINE.dino.isJumping && !ENGINE.dino.dead) {
+                ctx.fillStyle = '#f7f7f7'; // Cắt chân
+                if(Math.floor(ENGINE.frames / 5) % 2 === 0) {
+                    ctx.fillRect(ENGINE.dino.x + 10, ENGINE.dino.y + ENGINE.dino.h - 8, 10, 8);
+                } else {
+                    ctx.fillRect(ENGINE.dino.x + 20, ENGINE.dino.y + ENGINE.dino.h - 8, 10, 8);
+                }
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!ENGINE.isRunning) return;
+
+            if (!ENGINE.lastTime) ENGINE.lastTime = timestamp;
+            let dt = timestamp - ENGINE.lastTime;
+            ENGINE.lastTime = timestamp;
+            
+            // Tránh vọt lố nếu tab bị ẩn
+            if (dt > 100) dt = 100;
+
+            ENGINE.accumulator += dt;
+            while (ENGINE.accumulator >= ENGINE.timeStep) {
+                updatePhysics();
+                ENGINE.accumulator -= ENGINE.timeStep;
+            }
+
+            draw();
+
+            // Nếu cả 2 đều chết thì dừng loop
+            if (ENGINE.dino.dead && state.oppDead) {
+                ENGINE.isRunning = false;
+                showResults();
+            } else {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function jump() {
+            if (state.status !== 'playing' || !ENGINE.isRunning || ENGINE.dino.dead) return;
+            if (!ENGINE.dino.isJumping) {
+                ENGINE.dino.vy = ENGINE.jumpForce;
+                ENGINE.dino.isJumping = true;
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        container.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, {passive: false});
+        container.addEventListener('mousedown', jump);
+
+
+        // --- MULTIPLAYER STATE ---
+        let state = {
+            roomId: null,
+            isHost: true,
+            status: 'menu',
+            myName: 'Player',
+            oppName: 'Waiting...',
+            myScore: 0,
+            oppScore: 0,
+            oppDead: false,
+            unsubscribe: null
+        };
+
+        // --- UI HELPERS ---
+        const ui = {
+            menu: document.getElementById('screen-menu'),
+            lobby: document.getElementById('screen-lobby'),
+            game: document.getElementById('screen-game'),
+            toast: document.getElementById('toast'),
+            toastTxt: document.getElementById('toast-text'),
+            
+            showScreen: (id) => {
+                ui.menu.classList.add('hidden');
+                ui.lobby.classList.add('hidden');
+                ui.game.classList.add('hidden');
+                document.getElementById(id).classList.remove('hidden');
+                if(id === 'screen-game') resizeCanvas();
+            },
+            toast: (msg) => {
+                ui.toastTxt.innerText = msg;
+                ui.toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => ui.toast.classList.add('translate-y-[-20px]', 'opacity-0'), 2500);
+            }
+        };
+
+        window.copyCode = () => {
+            navigator.clipboard.writeText(state.roomId);
+            ui.toast("Đã copy mã phòng!");
+        };
+
+        function getMyName() {
+            return document.getElementById('player-name').value.trim() || "Dino R";
+        }
+
+        // --- MULTIPLAYER LOGIC ---
+        const genCode = () => Math.random().toString(36).substring(2, 7).toUpperCase();
+
+        window.createRoom = async () => {
+            if (!db || !user) return ui.toast("Lỗi kết nối máy chủ.");
+            const btn = document.getElementById('btn-create');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+            state.myName = getMyName();
+            state.roomId = genCode();
+            state.isHost = true;
+            
+            try {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId);
+                await setDoc(ref, {
+                    hostId: user.uid, hostName: state.myName, hostScore: 0, hostDead: false,
+                    peerId: null, peerName: null, peerScore: 0, peerDead: false,
+                    status: 'waiting', seed: null, startTime: null
+                });
+
+                document.getElementById('lobby-code').innerText = state.roomId;
+                document.getElementById('lobby-host-name').innerText = state.myName;
+                ui.showScreen('screen-lobby');
+                listenRoom(ref);
+            } catch (e) {
+                ui.toast("Lỗi tạo phòng!");
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-plus"></i> Tạo Phòng Đua'; btn.disabled = false;
+            }
+        };
+
+        window.joinRoom = async () => {
+            if (!db || !user) return ui.toast("Lỗi kết nối máy chủ.");
+            const code = document.getElementById('join-code').value.toUpperCase().trim();
+            if (!code) return ui.toast("Nhập mã phòng");
+            
+            const btn = document.getElementById('btn-join');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+            state.myName = getMyName();
+
+            try {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', code);
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.status !== 'waiting' && data.peerId !== user.uid) {
+                        ui.toast("Phòng đã đầy hoặc đang chơi"); return;
+                    }
+                    
+                    if (data.hostId !== user.uid) {
+                        await updateDoc(ref, { peerId: user.uid, peerName: state.myName });
+                        state.isHost = false;
+                        state.oppName = data.hostName;
+                    } else {
+                        state.isHost = true;
+                    }
+
+                    state.roomId = code;
+                    document.getElementById('lobby-code').innerText = code;
+                    document.getElementById('lobby-host-name').innerText = data.hostName || "Host";
+                    ui.showScreen('screen-lobby');
+                    listenRoom(ref);
+                } else {
+                    ui.toast("Mã phòng sai!");
+                }
+            } catch(e) {
+                ui.toast("Lỗi tham gia!");
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i>'; btn.disabled = false;
+            }
+        };
+
+        window.leaveRoom = () => {
+            if (state.unsubscribe) state.unsubscribe();
+            if (!state.isHost && state.roomId && db && user) {
+                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId), { peerId: null, peerName: null }).catch(()=>{});
+            }
+            state.roomId = null;
+            ENGINE.isRunning = false;
+            ui.showScreen('screen-menu');
+        };
+
+        window.startGameHost = async () => {
+            if(!state.isHost || !db) return;
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId);
+            await updateDoc(ref, {
+                status: 'playing',
+                seed: Math.floor(Math.random() * 999999),
+                startTime: Date.now() + 3000, // Đếm ngược 3s cho cả 2
+                hostScore: 0, hostDead: false,
+                peerScore: 0, peerDead: false
+            });
+        };
+
+        function listenRoom(ref) {
+            if (state.unsubscribe) state.unsubscribe();
+            
+            state.unsubscribe = onSnapshot(ref, (snap) => {
+                if (!snap.exists()) return window.leaveRoom();
+                const data = snap.data();
+                
+                // Lobby logic
+                if (data.status === 'waiting') {
+                    if (data.peerName) {
+                        document.getElementById('lobby-peer-name').innerText = data.peerName;
+                        document.getElementById('lobby-peer-name').classList.remove('text-slate-500');
+                        document.getElementById('lobby-peer-status').innerHTML = '<i class="fa-solid fa-check text-green-500 text-xl"></i>';
+                        if (state.isHost) document.getElementById('btn-start').disabled = false;
+                    } else {
+                        document.getElementById('lobby-peer-name').innerText = "Đang đợi...";
+                        document.getElementById('lobby-peer-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin text-slate-400 text-xl"></i>';
+                        if (state.isHost) document.getElementById('btn-start').disabled = true;
+                    }
+                    if (!state.isHost) {
+                        document.getElementById('btn-start').classList.add('hidden');
+                        document.getElementById('msg-waiting-host').classList.remove('hidden');
+                    }
+                }
+
+                // Start Game Trigger
+                if (data.status === 'playing' && state.status !== 'playing') {
+                    state.status = 'playing';
+                    ENGINE.seed = data.seed;
+                    state.oppDead = false;
+                    
+                    document.getElementById('ui-my-name').innerText = state.myName;
+                    document.getElementById('ui-opp-name').innerText = state.isHost ? data.peerName : data.hostName;
+                    
+                    document.getElementById('ui-status-msg').innerText = "SẴN SÀNG";
+                    document.getElementById('ui-opp-status').classList.remove('hidden', 'bg-red-100', 'text-red-700');
+                    document.getElementById('ui-opp-status').classList.add('bg-green-100', 'text-green-700');
+                    document.getElementById('ui-opp-status').innerText = "RUN";
+                    
+                    ui.showScreen('screen-game');
+                    resetEngine();
+                    startCountdown();
+                }
+
+                // In-game Sync
+                if (state.status === 'playing') {
+                    if (state.isHost) {
+                        state.oppScore = data.peerScore;
+                        state.oppDead = data.peerDead;
+                    } else {
+                        state.oppScore = data.hostScore;
+                        state.oppDead = data.hostDead;
+                    }
+                    
+                    document.getElementById('ui-opp-score').innerText = String(state.oppScore).padStart(5, '0');
+                    
+                    if (state.oppDead) {
+                        document.getElementById('ui-opp-status').classList.remove('bg-green-100', 'text-green-700');
+                        document.getElementById('ui-opp-status').classList.add('bg-red-100', 'text-red-700');
+                        document.getElementById('ui-opp-status').innerText = "DEAD";
+                        
+                        if(!ENGINE.dino.dead) document.getElementById('ui-status-msg').innerText = "ĐỐI THỦ ĐÃ GỤC!";
+                    }
+                }
+            });
+        }
+
+        // --- GAME FLOW ---
+        function startCountdown() {
+            const overlay = document.getElementById('countdown-overlay');
+            const txt = document.getElementById('countdown-text');
+            overlay.classList.remove('hidden');
+            
+            let count = 3;
+            txt.innerText = count;
+            
+            // Vẽ bối cảnh trước
+            draw();
+
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    txt.innerText = count;
+                } else if (count === 0) {
+                    txt.innerText = "GO!";
+                } else {
+                    clearInterval(interval);
+                    overlay.classList.add('hidden');
+                    document.getElementById('ui-status-msg').innerText = "ĐANG CHẠY...";
+                    ENGINE.isRunning = true;
+                    ENGINE.lastTime = 0;
+                    requestAnimationFrame(gameLoop);
+                }
+            }, 1000);
+        }
+
+        async function syncStatusToServer(isDead) {
+            if(!db || !state.roomId) return;
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId);
+            if (state.isHost) {
+                await updateDoc(ref, { hostScore: ENGINE.score, hostDead: isDead }).catch(()=>{});
+            } else {
+                await updateDoc(ref, { peerScore: ENGINE.score, peerDead: isDead }).catch(()=>{});
+            }
+        }
+
+        function handleDeath() {
+            document.getElementById('ui-status-msg').innerText = "BẠN ĐÃ CHẾT";
+            document.getElementById('ui-status-msg').classList.replace('text-amber-500', 'text-red-500');
+            draw(); // Vẽ frame chết
+            syncStatusToServer(true);
+
+            // Kiểm tra xem đối thủ chết chưa, nếu chết rồi thì show luôn
+            if (state.oppDead) {
+                setTimeout(showResults, 1000);
+            }
+        }
+
+        function showResults() {
+            const modal = document.getElementById('modal');
+            
+            document.getElementById('res-name-1').innerText = state.myName;
+            document.getElementById('res-score-1').innerText = ENGINE.score;
+            document.getElementById('res-name-2').innerText = document.getElementById('ui-opp-name').innerText;
+            document.getElementById('res-score-2').innerText = state.oppScore;
+
+            const desc = document.getElementById('modal-desc');
+            const btn = document.getElementById('btn-modal-ok');
+            
+            if (ENGINE.score > state.oppScore) {
+                desc.innerText = "🎉 BẠN ĐÃ CHIẾN THẮNG!";
+                desc.className = "text-green-600 mb-6 font-bold text-xl uppercase tracking-wider";
+            } else if (ENGINE.score < state.oppScore) {
+                desc.innerText = "💔 BẠN ĐÃ THUA C C!";
+                desc.className = "text-red-600 mb-6 font-bold text-xl uppercase tracking-wider";
+            } else {
+                desc.innerText = "🤝 HÒA NHAU!";
+                desc.className = "text-slate-600 mb-6 font-bold text-xl uppercase tracking-wider";
+            }
+
+            if (!state.isHost) {
+                btn.innerText = "Chờ Host...";
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+            } else {
+                btn.innerText = "Trở về Phòng";
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        window.handleModalOk = () => {
+            if(state.isHost && db) {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId);
+                updateDoc(ref, { status: 'waiting' }).then(() => {
+                    document.getElementById('modal').classList.add('opacity-0', 'hidden');
+                    state.status = 'menu';
+                    ui.showScreen('screen-lobby');
+                });
+            }
+        };
+
+    </script>
+</body>
+</html>

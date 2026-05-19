@@ -263,7 +263,6 @@
             baseHeight: 400,
             scale: 1,
 
-            // Cập nhật lại Hitbox & Physics để mượt hơn
             dino: { x: 80, y: 0, w: 44, h: 48, vy: 0, isJumping: false, dead: false },
             groundY: 300,
             gravity: 0.65,
@@ -282,7 +281,6 @@
             lastSyncScore: 0
         };
 
-        // Hàm random Deterministic
         function seededRandom() {
             var t = ENGINE.seed += 0x6D2B79F5;
             t = Math.imul(t ^ t >>> 15, t | 1);
@@ -293,7 +291,6 @@
         function resizeCanvas() {
             const w = container.clientWidth;
             const h = container.clientHeight;
-            // Tăng độ phân giải canvas để hình ảnh sắc nét trên màn hình Retina (DPI cao)
             const dpr = window.devicePixelRatio || 1;
             canvas.width = w * dpr;
             canvas.height = h * dpr;
@@ -302,17 +299,12 @@
             canvas.style.height = `${h}px`;
 
             ENGINE.scale = Math.min(w / ENGINE.baseWidth, h / ENGINE.baseHeight);
-            // Căn chỉnh Ground nằm hợp lý trên màn hình
             ENGINE.groundY = h * 0.75; 
             
-            // Re-init Dino Y if sitting on ground
             if(!ENGINE.dino.isJumping) ENGINE.dino.y = ENGINE.groundY - ENGINE.dino.h;
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // --- HỆ THỐNG VẼ ĐỒ HỌA HIỆN ĐẠI ---
-
-        // Hàm vẽ Hình chữ nhật bo góc (Polyfill an toàn)
         function drawRoundedRect(x, y, w, h, r, fill, stroke) {
             ctx.beginPath();
             ctx.moveTo(x + r, y);
@@ -331,33 +323,28 @@
 
         function drawModernDino() {
             const d = ENGINE.dino;
-            const color = state.isHost ? '#3b82f6' : '#ef4444'; // Xanh cho Chủ, Đỏ cho Khách
+            const color = state.isHost ? '#3b82f6' : '#ef4444'; 
             const bellyColor = state.isHost ? '#bfdbfe' : '#fecaca';
 
             ctx.save();
             ctx.translate(d.x, d.y);
 
-            // Thêm hiệu ứng rớt/chết
             if (d.dead) {
                 ctx.translate(d.w/2, d.h/2);
-                ctx.rotate(Math.PI / 8); // Xoay nhẹ khi chết
+                ctx.rotate(Math.PI / 8); 
                 ctx.translate(-d.w/2, -d.h/2);
             }
 
-            // Bóng (Shadow)
             ctx.fillStyle = 'rgba(0,0,0,0.15)';
             drawRoundedRect(2, 4, d.w, d.h, 12, true);
 
-            // Thân chính
             drawRoundedRect(0, 0, d.w, d.h, 14, color);
 
-            // Bụng (Màu sáng hơn)
             ctx.fillStyle = bellyColor;
             ctx.beginPath();
             ctx.arc(d.w/2 - 2, d.h - 10, 15, Math.PI, 0, false);
             ctx.fill();
 
-            // Đuôi
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(10, d.h - 15);
@@ -365,23 +352,19 @@
             ctx.lineTo(10, d.h);
             ctx.fill();
 
-            // Mõm
             drawRoundedRect(d.w - 18, 5, 22, 18, 8, color);
 
-            // Mắt
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(d.w - 6, 12, 6, 0, Math.PI*2);
             ctx.fill();
 
             if (!d.dead) {
-                // Tròng đen
                 ctx.fillStyle = '#0f172a';
                 ctx.beginPath();
                 ctx.arc(d.w - 4, 12, 2.5, 0, Math.PI*2);
                 ctx.fill();
             } else {
-                // Mắt chết (X)
                 ctx.strokeStyle = '#0f172a';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -390,45 +373,36 @@
                 ctx.stroke();
             }
 
-            // Chân (Animation)
             ctx.fillStyle = '#1e293b';
             let l1 = 0, l2 = 0;
             if (!d.isJumping && !d.dead) {
-                // Hiệu ứng chạy luân phiên
                 const cycle = Math.floor(ENGINE.frames / 6) % 2;
                 l1 = cycle === 0 ? -6 : 0;
                 l2 = cycle === 1 ? -6 : 0;
             } else if (d.isJumping) {
-                // Co chân khi nhảy
                 l1 = -6; l2 = -6;
             }
             
-            drawRoundedRect(12, d.h - 6 + l1, 8, 12, 4, color); // Chân trái
-            drawRoundedRect(d.w - 18, d.h - 6 + l2, 8, 12, 4, color); // Chân phải (chỉnh xíu cho tối màu)
+            drawRoundedRect(12, d.h - 6 + l1, 8, 12, 4, color); 
+            drawRoundedRect(d.w - 18, d.h - 6 + l2, 8, 12, 4, color); 
             
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'; // Bóng chân
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
             drawRoundedRect(d.w - 18, d.h - 6 + l2, 8, 12, 4, true); 
 
             ctx.restore();
         }
 
         function drawModernCactus(obs) {
-            // Thân chính
             drawRoundedRect(obs.x, obs.y, obs.w, obs.h, 8, '#22c55e');
-            // Chi tiết sọc dọc
             drawRoundedRect(obs.x + 4, obs.y + 2, obs.w - 8, obs.h - 2, 4, '#4ade80');
             
-            // Xương rồng có nhánh nếu đủ cao
             if (obs.type === 'complex') {
-                // Nhánh trái
                 drawRoundedRect(obs.x - 14, obs.y + 15, 16, 10, 4, '#22c55e');
                 drawRoundedRect(obs.x - 14, obs.y + 5, 10, 20, 4, '#22c55e');
-                // Nhánh phải
                 drawRoundedRect(obs.x + obs.w - 2, obs.y + 25, 16, 10, 4, '#22c55e');
                 drawRoundedRect(obs.x + obs.w + 4, obs.y + 15, 10, 20, 4, '#22c55e');
             }
             
-            // Mắt dễ thương cho xương rồng
             ctx.fillStyle = '#064e3b';
             ctx.beginPath();
             ctx.arc(obs.x + obs.w/2 - 4, obs.y + 15, 2, 0, Math.PI*2);
@@ -449,7 +423,6 @@
             }
         }
 
-        // --- GAME LOOP & LOGIC ---
         function resetEngine() {
             ENGINE.dino.y = ENGINE.groundY - ENGINE.dino.h;
             ENGINE.dino.vy = 0;
@@ -458,7 +431,6 @@
             ENGINE.obstacles = [];
             ENGINE.particles = [];
             
-            // Tạo mây ngẫu nhiên
             ENGINE.clouds = [];
             for(let i=0; i<5; i++) {
                 ENGINE.clouds.push({
@@ -502,19 +474,16 @@
         function updatePhysics() {
             if (ENGINE.dino.dead) return;
 
-            // Tăng tốc
             ENGINE.speed = ENGINE.baseSpeed + (ENGINE.score / 600);
             if(ENGINE.speed > 16) ENGINE.speed = 16;
 
             ENGINE.distanceTravelled += ENGINE.speed;
             ENGINE.frames++;
             
-            // Sinh bụi khi chạy
             if(!ENGINE.dino.isJumping && ENGINE.frames % 5 === 0) {
                 spawnParticles(ENGINE.dino.x, ENGINE.groundY);
             }
 
-            // Điểm số
             if (ENGINE.frames % 5 === 0) {
                 ENGINE.score++;
                 document.getElementById('ui-my-score').innerText = String(ENGINE.score).padStart(5, '0');
@@ -525,27 +494,24 @@
                 }
             }
 
-            // Vật lý Dino
             ENGINE.dino.vy += ENGINE.gravity;
             ENGINE.dino.y += ENGINE.dino.vy;
 
             if (ENGINE.dino.y > ENGINE.groundY - ENGINE.dino.h) {
                 if (ENGINE.dino.isJumping) {
-                    spawnParticles(ENGINE.dino.x + 10, ENGINE.groundY); // Bụi khi đáp
+                    spawnParticles(ENGINE.dino.x + 10, ENGINE.groundY); 
                 }
                 ENGINE.dino.y = ENGINE.groundY - ENGINE.dino.h;
                 ENGINE.dino.vy = 0;
                 ENGINE.dino.isJumping = false;
             }
 
-            // Xương rồng
             if (ENGINE.distanceTravelled > ENGINE.nextSpawnDist) spawnObstacle();
 
             for (let i = 0; i < ENGINE.obstacles.length; i++) {
                 let obs = ENGINE.obstacles[i];
                 obs.x -= ENGINE.speed;
 
-                // Hitbox nhỏ hơn hình ảnh thực tế một chút để công bằng
                 let hX = ENGINE.dino.x + 8;
                 let hY = ENGINE.dino.y + 8;
                 let hW = ENGINE.dino.w - 16;
@@ -566,7 +532,6 @@
                 ENGINE.obstacles.shift();
             }
 
-            // Cập nhật Mây & Hạt bụi
             ENGINE.clouds.forEach(c => {
                 c.x -= c.speed;
                 if(c.x < -100) { c.x = container.clientWidth + 100; c.y = Math.random() * (ENGINE.groundY - 150) + 20; }
@@ -584,10 +549,8 @@
             const w = container.clientWidth;
             const h = container.clientHeight;
 
-            // Xóa & Background
             ctx.clearRect(0, 0, w, h);
 
-            // Mây (Clouds)
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             ENGINE.clouds.forEach(c => {
                 ctx.save();
@@ -601,18 +564,15 @@
                 ctx.restore();
             });
 
-            // Mặt đất (Ground Line)
-            ctx.fillStyle = '#cbd5e1'; // Slate 300
+            ctx.fillStyle = '#cbd5e1'; 
             ctx.fillRect(0, ENGINE.groundY, w, 4);
             
-            // Dải gradient đất
             let grad = ctx.createLinearGradient(0, ENGINE.groundY, 0, h);
             grad.addColorStop(0, 'rgba(203, 213, 225, 0.4)');
             grad.addColorStop(1, 'rgba(203, 213, 225, 0)');
             ctx.fillStyle = grad;
             ctx.fillRect(0, ENGINE.groundY + 4, w, h - ENGINE.groundY);
 
-            // Chi tiết sỏi đá di chuyển
             ctx.fillStyle = '#94a3b8';
             const offset = -(ENGINE.distanceTravelled % 200);
             for(let i=0; i<w/200 + 2; i++) {
@@ -621,12 +581,10 @@
                 drawRoundedRect(offset + i*200 + 180, ENGINE.groundY + 8, 6, 4, 2, true);
             }
 
-            // Chướng ngại vật
             for (let obs of ENGINE.obstacles) {
                 drawModernCactus(obs);
             }
 
-            // Hạt bụi
             ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
             for(let p of ENGINE.particles) {
                 ctx.beginPath();
@@ -634,7 +592,6 @@
                 ctx.fill();
             }
 
-            // Dino
             drawModernDino();
         }
 
@@ -657,6 +614,7 @@
 
             if (ENGINE.dino.dead && state.oppDead) {
                 ENGINE.isRunning = false;
+                state.status = 'finished';
                 showResults();
             } else {
                 requestAnimationFrame(gameLoop);
@@ -807,6 +765,12 @@
             }
             state.roomId = null;
             ENGINE.isRunning = false;
+            state.status = 'menu';
+            
+            // Đóng modal kết quả nếu đang mở
+            document.getElementById('modal').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('modal').classList.add('hidden'), 300);
+
             ui.showScreen('screen-menu');
         };
 
@@ -844,6 +808,14 @@
                     if (!state.isHost) {
                         document.getElementById('btn-start').classList.add('hidden');
                         document.getElementById('msg-waiting-host').classList.remove('hidden');
+                    }
+
+                    // Xử lý chuyển từ Game/Kết quả về Phòng chờ
+                    if (state.status === 'playing' || state.status === 'finished') {
+                        state.status = 'waiting';
+                        document.getElementById('modal').classList.add('opacity-0');
+                        setTimeout(() => document.getElementById('modal').classList.add('hidden'), 300);
+                        ui.showScreen('screen-lobby');
                     }
                 }
 
@@ -980,10 +952,21 @@
 
         window.handleModalOk = () => {
             if(state.isHost && db) {
+                const btn = document.getElementById('btn-modal-ok');
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                
                 const ref = doc(db, 'artifacts', appId, 'public', 'data', 'dino_rooms', state.roomId);
-                updateDoc(ref, { status: 'waiting' }).then(() => {
-                    document.getElementById('modal').classList.add('opacity-0', 'hidden');
-                    state.status = 'menu';
+                updateDoc(ref, { 
+                    status: 'waiting',
+                    hostScore: 0, hostDead: false,
+                    peerScore: 0, peerDead: false
+                }).then(() => {
+                    document.getElementById('modal').classList.add('opacity-0');
+                    setTimeout(() => {
+                        document.getElementById('modal').classList.add('hidden');
+                        btn.innerHTML = 'Chơi Lại';
+                    }, 300);
+                    state.status = 'waiting';
                     ui.showScreen('screen-lobby');
                 });
             }
